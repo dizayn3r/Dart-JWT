@@ -31,7 +31,7 @@ $ dart pub get
 3. Import the package and use it in your Flutter App.
 
 ```dart
-import 'package:dart_jwt/dart_jwt.dart';
+import 'package:dart_jwt_token/dart_jwt_token.dart';
 ```
 
 ## Usage
