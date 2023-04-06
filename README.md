@@ -19,7 +19,7 @@ Dart JWT package lets you create jwt token.
 
 ```yaml
 dependencies:
-  dart_jwt: ^0.0.1
+  dart_jwt_token: ^0.0.1
 ```
 
 2. You can install packages from the command line with Flutter:
