@@ -15,6 +15,6 @@ on:
 # Publish using the reusable workflow from dart-lang.
 jobs:
   publish:
-    uses: dart-lang/setup-dart/.github/workflows/publish.yml@v1
+    uses: dizayn3r/Dart-JWT/.github/workflows/publish.yml@v1
     # with:
     #   working-directory: path/to/package/within/repository
