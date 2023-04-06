@@ -36,7 +36,7 @@ import 'package:dart_jwt/dart_jwt.dart';
 
 ## Usage
 
-# Create JWT Token
+### Create JWT Token
 
 ```dart
 String createToken(
