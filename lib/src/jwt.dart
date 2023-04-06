@@ -1,0 +1,307 @@
+import 'dart:convert';
+import 'dart:typed_data';
+
+import 'algorithms.dart';
+import 'errors.dart';
+import 'keys.dart';
+import 'utils.dart';
+
+class JWT {
+  /// `key` must be
+  /// - SecretKey with HMAC algorithm
+
+  /// Verify Token
+  static JWT verify(
+    String token,
+    JWTKey key, {
+    bool checkHeaderType = true,
+    bool checkExpiresIn = true,
+    bool checkNotBefore = true,
+    Duration? issueAt,
+    String? subject,
+    String? issuer,
+    String? jwtId,
+  }) {
+    try {
+      final parts = token.split('.');
+      final header = jsonBase64.decode(base64Padded(parts[0]));
+
+      if (header == null || header is! Map<String, dynamic>) {
+        throw JWTInvalidError('invalid header');
+      }
+
+      if (checkHeaderType && header['typ'] != 'JWT') {
+        throw JWTInvalidError('not a jwt');
+      }
+
+      final algorithm = JWTAlgorithm.fromName(header['alg']);
+
+      final body = utf8.encode(parts[0] + '.' + parts[1]);
+      final signature = base64Url.decode(base64Padded(parts[2]));
+
+      if (!algorithm.verify(key, Uint8List.fromList(body), signature)) {
+        throw JWTInvalidError('invalid signature');
+      }
+
+      dynamic payload;
+
+      try {
+        payload = jsonBase64.decode(base64Padded(parts[1]));
+      } catch (ex) {
+        payload = utf8.decode(base64.decode(base64Padded(parts[1])));
+      }
+
+      if (payload is Map) {
+        // exp
+        if (checkExpiresIn && payload.containsKey('exp')) {
+          final exp = DateTime.fromMillisecondsSinceEpoch(
+            payload['exp'] * 1000,
+          );
+          if (exp.isBefore(DateTime.now())) {
+            throw JWTExpiredError();
+          }
+        }
+
+        // nbf
+        if (checkNotBefore && payload.containsKey('nbf')) {
+          final nbf = DateTime.fromMillisecondsSinceEpoch(
+            payload['nbf'] * 1000,
+          );
+          if (nbf.isAfter(DateTime.now())) {
+            throw JWTNotActiveError();
+          }
+        }
+
+        // iat
+        if (issueAt != null) {
+          if (!payload.containsKey('iat')) {
+            throw JWTInvalidError('invalid issue at');
+          }
+          final iat = DateTime.fromMillisecondsSinceEpoch(
+            payload['iat'] * 1000,
+          );
+          if (!iat.isAtSameMomentAs(DateTime.now())) {
+            throw JWTInvalidError('invalid issue at');
+          }
+        }
+
+        // sub
+        if (subject != null) {
+          if (!payload.containsKey('sub') || payload['sub'] != subject) {
+            throw JWTInvalidError('invalid subject');
+          }
+        }
+
+        // iss
+        if (issuer != null) {
+          if (!payload.containsKey('iss') || payload['iss'] != issuer) {
+            throw JWTInvalidError('invalid issuer');
+          }
+        }
+
+        // jti
+        if (jwtId != null) {
+          if (!payload.containsKey('jti') || payload['jti'] != jwtId) {
+            throw JWTInvalidError('invalid jwt id');
+          }
+        }
+
+        return JWT(
+          payload,
+          header: header,
+          issuer: payload['iss'],
+          subject: payload['sub'],
+          jwtId: payload['jti'],
+        );
+      } else {
+        return JWT(payload);
+      }
+    } catch (ex) {
+      if (ex is Error && ex is! JWTError) {
+        throw JWTUndefinedError(ex);
+      } else {
+        rethrow;
+      }
+    }
+  }
+
+  /// Exactly like `verify`, just return null instead of throwing errors.
+  static JWT? tryVerify(
+    String token,
+    JWTKey key, {
+    bool checkHeaderType = true,
+    bool checkExpiresIn = true,
+    bool checkNotBefore = true,
+    Duration? issueAt,
+    String? subject,
+    String? issuer,
+    String? jwtId,
+  }) {
+    try {
+      return verify(
+        token,
+        key,
+        checkHeaderType: checkHeaderType,
+        checkExpiresIn: checkExpiresIn,
+        checkNotBefore: checkNotBefore,
+        issueAt: issueAt,
+        subject: subject,
+        issuer: issuer,
+        jwtId: jwtId,
+      );
+    } catch (ex) {
+      return null;
+    }
+  }
+
+  /// Decode a token without checking its signature
+  static JWT decode(String token) {
+    try {
+      final parts = token.split('.');
+      var header = jsonBase64.decode(base64Padded(parts[0]));
+
+      dynamic payload;
+
+      try {
+        payload = jsonBase64.decode(base64Padded(parts[1]));
+      } catch (ex) {
+        payload = utf8.decode(base64.decode(base64Padded(parts[1])));
+      }
+
+      if (header == null || header is! Map<String, dynamic>) {
+        return JWT(payload);
+      } else {
+        return JWT(
+          payload,
+          header: header,
+        );
+      }
+    } catch (ex) {
+      if (ex is Error && ex is! JWTError) {
+        throw JWTUndefinedError(ex);
+      } else {
+        rethrow;
+      }
+    }
+  }
+
+  /// Exactly like `decode`, just return `null` instead of throwing errors.
+  static JWT? tryDecode(String token) {
+    try {
+      return decode(token);
+    } catch (ex) {
+      return null;
+    }
+  }
+
+  /// JSON Web Token
+  JWT(
+    this.payload, {
+    this.subject,
+    this.issuer,
+    this.jwtId,
+    this.header,
+  });
+
+  /// Custom claims
+  dynamic payload;
+
+  /// Subject claim
+  String? subject;
+
+  /// Issuer claim
+  String? issuer;
+
+  /// JWT Id claim
+  String? jwtId;
+
+  /// JWT header
+  Map<String, dynamic>? header;
+
+  /// Sign and generate a new token with key.
+  /// Key must be SecretKey with HMAC algorithm
+
+  String sign(
+    JWTKey key, {
+    JWTAlgorithm algorithm = JWTAlgorithm.HS256,
+    Duration? expiresIn,
+    Duration? notBefore,
+    bool noIssueAt = false,
+  }) {
+    try {
+      header ??= {};
+      header!.addAll({'alg': algorithm.name, 'typ': 'JWT'});
+
+      if (payload is Map<String, dynamic> || payload is Map<dynamic, dynamic>) {
+        try {
+          payload = Map<String, dynamic>.from(payload);
+          if (!noIssueAt) payload['iat'] = secondsSinceEpoch(DateTime.now());
+          if (expiresIn != null) payload['exp'] = secondsSinceEpoch(DateTime.now().add(expiresIn));
+          if (notBefore != null) payload['nbf'] = secondsSinceEpoch(DateTime.now().add(notBefore));
+          if (subject != null) payload['sub'] = subject;
+          if (issuer != null) payload['iss'] = issuer;
+          if (jwtId != null) payload['jti'] = jwtId;
+        } catch (ex) {
+          assert(
+            payload is Map<String, dynamic>,
+            'If payload is a Map its must be a Map<String, dynamic>',
+          );
+        }
+      }
+
+      final b64Header = base64Unpadded(jsonBase64.encode(header));
+
+      String b64Payload;
+      try {
+        b64Payload = base64Unpadded(
+          payload is String
+              ? base64.encode(utf8.encode(payload))
+              : jsonBase64.encode(payload),
+        );
+      } catch (ex) {
+        throw JWTError(
+          'invalid payload json format (Map keys must be String type)',
+        );
+      }
+
+      final body = '$b64Header.$b64Payload';
+      final signature = base64Unpadded(
+        base64Url.encode(
+          algorithm.sign(
+            key,
+            Uint8List.fromList(utf8.encode(body)),
+          ),
+        ),
+      );
+
+      return body + '.' + signature;
+    } catch (ex) {
+      if (ex is Error && ex is! JWTError) {
+        throw JWTUndefinedError(ex);
+      } else {
+        rethrow;
+      }
+    }
+  }
+
+  /// Exactly like `sign`, just return `null` instead of throwing errors.
+  String? trySign(
+    JWTKey key, {
+    JWTAlgorithm algorithm = JWTAlgorithm.HS256,
+    Duration? expiresIn,
+    Duration? notBefore,
+    bool noIssueAt = false,
+  }) {
+    try {
+      return sign(
+        key,
+        algorithm: algorithm,
+        expiresIn: expiresIn,
+        notBefore: notBefore,
+        noIssueAt: noIssueAt,
+      );
+    } catch (ex) {
+      return null;
+    }
+  }
+}
