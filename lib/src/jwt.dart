@@ -7,9 +7,6 @@ import 'keys.dart';
 import 'utils.dart';
 
 class JWT {
-  /// `key` must be
-  /// - SecretKey with HMAC algorithm
-
   /// Verify Token
   static JWT verify(
     String token,
@@ -36,7 +33,7 @@ class JWT {
 
       final algorithm = JWTAlgorithm.fromName(header['alg']);
 
-      final body = utf8.encode(parts[0] + '.' + parts[1]);
+      final body = utf8.encode('${parts[0]}.${parts[1]}');
       final signature = base64Url.decode(base64Padded(parts[2]));
 
       if (!algorithm.verify(key, Uint8List.fromList(body), signature)) {
@@ -223,7 +220,7 @@ class JWT {
 
   String sign(
     JWTKey key, {
-    JWTAlgorithm algorithm = JWTAlgorithm.HS256,
+    JWTAlgorithm algorithm = JWTAlgorithm.hs256,
     Duration? expiresIn,
     Duration? notBefore,
     bool noIssueAt = false,
@@ -236,8 +233,12 @@ class JWT {
         try {
           payload = Map<String, dynamic>.from(payload);
           if (!noIssueAt) payload['iat'] = secondsSinceEpoch(DateTime.now());
-          if (expiresIn != null) payload['exp'] = secondsSinceEpoch(DateTime.now().add(expiresIn));
-          if (notBefore != null) payload['nbf'] = secondsSinceEpoch(DateTime.now().add(notBefore));
+          if (expiresIn != null) {
+            payload['exp'] = secondsSinceEpoch(DateTime.now().add(expiresIn));
+          }
+          if (notBefore != null) {
+            payload['nbf'] = secondsSinceEpoch(DateTime.now().add(notBefore));
+          }
           if (subject != null) payload['sub'] = subject;
           if (issuer != null) payload['iss'] = issuer;
           if (jwtId != null) payload['jti'] = jwtId;
@@ -274,7 +275,7 @@ class JWT {
         ),
       );
 
-      return body + '.' + signature;
+      return '$body.$signature';
     } catch (ex) {
       if (ex is Error && ex is! JWTError) {
         throw JWTUndefinedError(ex);
@@ -287,7 +288,7 @@ class JWT {
   /// Exactly like `sign`, just return `null` instead of throwing errors.
   String? trySign(
     JWTKey key, {
-    JWTAlgorithm algorithm = JWTAlgorithm.HS256,
+    JWTAlgorithm algorithm = JWTAlgorithm.hs256,
     Duration? expiresIn,
     Duration? notBefore,
     bool noIssueAt = false,

@@ -19,7 +19,7 @@ Dart JWT package lets you create jwt token.
 
 ```yaml
 dependencies:
-  dart_jwt_token: ^0.0.1
+  dart_jwt_token: ^0.0.2
 ```
 
 2. You can install packages from the command line with Flutter:
@@ -47,5 +47,20 @@ String createToken(
   final jwt = JWT(payload, header: headers);
   token = jwt.sign(key);
   return token;
+}
+```
+
+### Verify JWT Token
+
+```dart
+Map<String, dynamic> verifyToken(String token, SecretKey key) {
+  try {
+    final jwt = JWT.verify(token, key);
+    return jwt.payload;
+  } on JWTExpiredError {
+    return {"expired": true};
+  } on JWTError catch (ex) {
+    return {"Error": ex.message};
+  }
 }
 ```

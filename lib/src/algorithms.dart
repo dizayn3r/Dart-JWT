@@ -7,23 +7,23 @@ import 'keys.dart';
 
 abstract class JWTAlgorithm {
   /// HMAC using SHA-256 hash algorithm
-  static const HS256 = _HMACAlgorithm('HS256');
+  static const hs256 = _HMACAlgorithm('HS256');
 
   /// HMAC using SHA-384 hash algorithm
-  static const HS384 = _HMACAlgorithm('HS384');
+  static const hs384 = _HMACAlgorithm('HS384');
 
   /// HMAC using SHA-512 hash algorithm
-  static const HS512 = _HMACAlgorithm('HS512');
+  static const hs512 = _HMACAlgorithm('HS512');
 
   /// Return the `JWTAlgorithm` from his string name
   static JWTAlgorithm fromName(String name) {
     switch (name) {
       case 'HS256':
-        return JWTAlgorithm.HS256;
+        return JWTAlgorithm.hs256;
       case 'HS384':
-        return JWTAlgorithm.HS384;
+        return JWTAlgorithm.hs384;
       case 'HS512':
-        return JWTAlgorithm.HS512;
+        return JWTAlgorithm.hs512;
       default:
         throw JWTInvalidError('unknown algorithm');
     }

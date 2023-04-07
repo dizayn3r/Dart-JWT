@@ -8,5 +8,4 @@ export 'src/errors.dart';
 export 'src/algorithms.dart';
 export 'src/keys.dart';
 
-
 // TODO: Export any libraries intended for clients of this package.
