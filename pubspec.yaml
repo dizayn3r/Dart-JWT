@@ -1,7 +1,7 @@
-name: dart_jwt
-description: A starting point for Dart libraries or applications.
-version: 0.0.1
-# repository: https://github.com/my_org/my_repo
+name: dart_jwt_token
+description: This package is used to create jwt token, verify token with key, and decode without key.
+version: 0.0.3
+repository: https://github.com/dizayn3r/Dart-JWT
 
 environment:
   sdk: '>=2.19.5 <3.0.0'

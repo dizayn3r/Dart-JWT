@@ -1,4 +1,3 @@
-
 abstract class JWTKey {}
 
 /// For HMAC algorithms
